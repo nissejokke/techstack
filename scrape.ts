@@ -7,24 +7,28 @@ const db = new Database("mydb.sqlite", { create: true });
 try {
     await db.run("CREATE TABLE frameworks (domain text PRIMARY KEY, frameworks text)");
 }
-catch {}
+catch { }
 
 try {
     await db.run('ALTER TABLE frameworks ADD status text');
     await db.run('ALTER TABLE frameworks ADD statustext text');
 }
-catch {}
+catch { }
+try {
+    await db.run('ALTER TABLE frameworks ADD detectedin text');
+} catch { }
+// await db.query('delete from frameworks where domain = $domain;').run({ $domain: 'toysrus.com' })
 
 const sites: string[] = await new Promise(resolve => {
     let readlines = 0;
-    const maxlines = 10000;
+    const maxlines = 20000;
     let sites: string[] = [];
     const lineReader = createInterface({
         input: createReadStream('top10milliondomains.csv'),
     });
-    
+
     lineReader.on('line', function (line: string) {
-        const [,domain] = line.split(',');
+        const [, domain] = line.split(',');
         if (readlines > 0) {
             const site = domain.substring(1, domain.length - 1);
             sites.push(`${site}`);
@@ -33,12 +37,12 @@ const sites: string[] = await new Promise(resolve => {
         if (readlines >= maxlines)
             lineReader.close();
     });
-    
+
     lineReader.on('close', function () {
         resolve(sites);
     });
 })
-    
+
 // Launch the browser and open a new blank page
 const browser = await puppeteer.launch();
 
@@ -86,7 +90,8 @@ process.exit(0);
 
 async function checkPage(url: string): Promise<{ framework: Framework[] }> {
     let page: Page | null = null;
-    let frameworkFound: Framework[] = [];
+    const frameworkFound: Framework[] = [];
+    const detectedin: string[] = [];
     const dmain = url.split('//')[1];
 
     try {
@@ -94,7 +99,8 @@ async function checkPage(url: string): Promise<{ framework: Framework[] }> {
             'www.googletagmanager.com',
             'www.google-analytics.com',
             'static.hotjar.com',
-            'script.hotjar.com'
+            'script.hotjar.com',
+            /blogspot.\w+$/i
         ];
 
         const selectquery = db.query(`SELECT * FROM frameworks where domain = $domain`);
@@ -114,7 +120,12 @@ async function checkPage(url: string): Promise<{ framework: Framework[] }> {
 
         page.on('request', (req) => {
             const url = new URL(req.url());
-            if (ignoreHosts.some(host => host === url.hostname) || !['document', 'script'].includes(req.resourceType())) {
+
+            if (
+                ignoreHosts.some(host => typeof host === 'string' ? 
+                    host === url.hostname : 
+                    url.hostname.match(host)) || 
+                !['document', 'script'].includes(req.resourceType())) {
                 req.abort();
             }
             else req.continue();
@@ -131,14 +142,17 @@ async function checkPage(url: string): Promise<{ framework: Framework[] }> {
                     if (['"solid-proxy"', 'solid-track'].some(needle => data.includes(needle))) {
                         if (!frameworkFound.includes('solidjs'))
                             frameworkFound.push('solidjs');
+                        detectedin.push(res.url());
                     }
-                    else if (['"react"'].some(needle => data.includes(needle))) {
+                    if (['"react"'].some(needle => data.includes(needle))) {
                         if (!frameworkFound.includes('react'))
                             frameworkFound.push('react');
+                        detectedin.push(res.url());
                     }
-                    else if (['data-svelte'].some(needle => data.includes(needle))) {
+                    if (['data-svelte'].some(needle => data.includes(needle))) {
                         if (!frameworkFound.includes('svelte'))
                             frameworkFound.push('svelte');
+                        detectedin.push(res.url());
                     }
                 }
             }
@@ -150,13 +164,13 @@ async function checkPage(url: string): Promise<{ framework: Framework[] }> {
         const res = await page.goto(url, { waitUntil: 'networkidle0' });
         if (!res) throw new Error('Res is null');
 
-        const query = db.query("INSERT INTO frameworks (domain, frameworks, status, statustext) VALUES ($domain, $frameworks, $status, $statustext)");
-        await query.run({ $domain: dmain, $frameworks: frameworkFound.join(', '), $status: 'OK', $statustext: '' });
+        const query = db.query("INSERT INTO frameworks (domain, frameworks, status, statustext, detectedin) VALUES ($domain, $frameworks, $status, $statustext, $detectedin)");
+        await query.run({ $domain: dmain, $frameworks: frameworkFound.join(', '), $status: 'OK', $statustext: '', $detectedin: detectedin.join(', ') });
 
     } catch (err) {
-        const query = db.query("INSERT INTO frameworks (domain, frameworks, status, statustext) VALUES ($domain, $frameworks, $status, $statustext)");
-        await query.run({ $domain: dmain, $frameworks: frameworkFound.join(', '), $status: 'ERROR', $statustext: err.message });
-    
+        const query = db.query("INSERT INTO frameworks (domain, frameworks, status, statustext, detectedin) VALUES ($domain, $frameworks, $status, $statustext, $detectedin)");
+        await query.run({ $domain: dmain, $frameworks: frameworkFound.join(', '), $status: 'ERROR', $statustext: err.message, $detectedin: detectedin.join(', ') });
+
         throw err;
     }
     finally {
