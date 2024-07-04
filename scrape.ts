@@ -18,7 +18,7 @@ catch {}
 
 const sites = await new Promise(resolve => {
     let readlines = 0;
-    const maxlines = 1000;
+    const maxlines = 2000;
     let sites: string[] = [];
     const lineReader = createInterface({
         input: createReadStream('top10milliondomains.csv'),
@@ -47,7 +47,7 @@ type Framework = 'solidjs' | 'react' | 'svelte';
 
 const results: Record<Framework, string[]> = {};
 
-const maxcount = 1000;
+const maxcount = 3000;
 let index = 0;
 const limit = index + maxcount;
 
