@@ -1,6 +1,5 @@
 import puppeteer, { Page } from 'puppeteer';
-import {topsites} from './top-sites';
-import {createInterface} from 'readline';
+import { createInterface } from 'readline';
 import { createReadStream } from 'fs';
 import { Database } from 'bun:sqlite';
 
@@ -16,9 +15,9 @@ try {
 }
 catch {}
 
-const sites = await new Promise(resolve => {
+const sites: string[] = await new Promise(resolve => {
     let readlines = 0;
-    const maxlines = 2000;
+    const maxlines = 10000;
     let sites: string[] = [];
     const lineReader = createInterface({
         input: createReadStream('top10milliondomains.csv'),
@@ -27,8 +26,8 @@ const sites = await new Promise(resolve => {
     lineReader.on('line', function (line: string) {
         const [,domain] = line.split(',');
         if (readlines > 0) {
-            const site = domain.substring(1, domain.length - 2);
-            sites.push(`https://${site}`);
+            const site = domain.substring(1, domain.length - 1);
+            sites.push(`${site}`);
         }
         readlines++;
         if (readlines >= maxlines)
@@ -47,16 +46,16 @@ type Framework = 'solidjs' | 'react' | 'svelte';
 
 const results: Record<Framework, string[]> = {};
 
-const maxcount = 3000;
+// const maxcount = 3000;
 let index = 0;
-const limit = index + maxcount;
+// const limit = index + maxcount;
 
-console.log('crawling', topsites.length, 'sites');
+console.log('crawling', sites.length, 'sites');
 
-for (const site of topsites.slice(index)) {
-    const page = `https://${site.rootDomain}`;
+for (const site of sites) {
+    const page = `https://${site}`;
     try {
-        process.stdout.write(`${index.toString().padEnd(3, ' ')} ${page}`);
+        process.stdout.write(`${index.toString().padEnd(4, ' ')} ${site}`);
         const result = await checkPage(page);
         if (result.framework.length)
             process.stdout.write(`, frameworks: ${result.framework}`);
@@ -72,8 +71,8 @@ for (const site of topsites.slice(index)) {
     }
 
     index++;
-    if (index >= limit)
-        break;
+    // if (index >= limit)
+    //     break;
 }
 
 console.log('== results ==\n');
