@@ -10,5 +10,8 @@
   "description": "",
   "dependencies": {
     "puppeteer": "^22.12.1"
+  },
+  "devDependencies": {
+    "bun-types": "^1.1.18"
   }
 }
