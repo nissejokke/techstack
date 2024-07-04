@@ -61,17 +61,18 @@ for (const site of topsites.slice(index)) {
         process.stdout.write(`${index.toString().padEnd(3, ' ')} ${page}`);
         const result = await checkPage(page);
         if (result.framework.length)
-            process.stdout.write(`, frameworks: ${result.framework}\n`);
-        else
-            console.log();
+            process.stdout.write(`, frameworks: ${result.framework}`);
 
         result.framework.forEach(framework => {
             results[framework] = results[framework] || [];
             results[framework].push(page);
         });
     } catch (err) {
-        console.log(`ERROR: ${page}: ${err.message}`);
+        process.stdout.write(`, error: ${page}: ${err.message}`);
+    } finally {
+        console.log();
     }
+
     index++;
     if (index >= limit)
         break;
@@ -117,11 +118,9 @@ async function checkPage(url: string): Promise<{ framework: Framework[] }> {
         page.on('request', (req) => {
             const url = new URL(req.url());
             if (ignoreHosts.some(host => host === url.hostname) || !['document', 'script'].includes(req.resourceType())) {
-                // console.log('aborting', req.url());
                 req.abort();
             }
-            else
-                req.continue();
+            else req.continue();
         });
 
         page.on('response', async (res) => {
