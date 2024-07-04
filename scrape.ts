@@ -2,7 +2,7 @@ import puppeteer, { Page } from 'puppeteer';
 import {topsites} from './top-sites';
 import {createInterface} from 'readline';
 import { createReadStream } from 'fs';
-import { Database } from "bun:sqlite";
+import { Database } from 'bun:sqlite';
 
 const db = new Database("mydb.sqlite", { create: true });
 try {
@@ -44,8 +44,6 @@ const sites = await new Promise(resolve => {
 const browser = await puppeteer.launch();
 
 type Framework = 'solidjs' | 'react' | 'svelte';
-
-// const pages = ['https://nordvpn.org/', 'https://www.stashpad.com/', 'https://instagram.com', 'https://ikea.com'];
 
 const results: Record<Framework, string[]> = {};
 
