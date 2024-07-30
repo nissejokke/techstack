@@ -5,7 +5,7 @@ import { Database } from 'bun:sqlite';
 
 const db = new Database("mydb.sqlite", { create: true });
 try {
-    await db.run("CREATE TABLE frameworks (domain text PRIMARY KEY, frameworks text)");
+    await db.run("CREATE TABLE frameworks (id integer PRIMARY KEY, domain text, frameworks text)");
 }
 catch { }
 
